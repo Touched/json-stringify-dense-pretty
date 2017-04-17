@@ -11,6 +11,7 @@
     "watch": "babel-node ./scripts/watch.js",
     "genfixture": "babel-node ./test/runFixtureTests.js generate",
     "build": "babel src/ --out-dir lib/ --ignore __tests__,__mocks__",
+    "clean": "rimraf lib",
     "prepublish": "npm run clean && npm run build"
   },
   "bin": {
@@ -18,7 +19,6 @@
   },
   "author": "Touched",
   "license": "GPL-3.0",
-  "private": true,
   "devDependencies": {
     "babel-cli": "^6.18.0",
     "babel-eslint": "^7.1.1",
@@ -41,6 +41,7 @@
     "eslint-plugin-react": "^6.6.0",
     "flow-bin": "^0.37.4",
     "mocha": "^3.2.0",
+    "rimraf": "^2.6.1",
     "sane": "^1.5.0",
     "sinon": "^1.17.7",
     "sinon-chai": "^2.8.0"
