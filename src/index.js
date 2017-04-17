@@ -7,16 +7,23 @@ const defaultOptions = {
 
 const NEWLINE = '\n';
 
+function lastLine(text) {
+  const lines = text.split('\n');
+  return lines[lines.length - 1];
+}
+
 export default function stringify(obj: mixed, options: Options = defaultOptions) {
   function indent(indentLevel) {
     return ' '.repeat(options.spaces * indentLevel);
   }
 
-  function serializeObject(node, indentLevel = 0) {
+  function stringifyObject(node, indentLevel = 0, currentLine) {
     const stringifiedObject = Object.keys(node).reduce((result, key) => {
       const value = node[key];
 
-      const serializedField = `"${key}"${options.keySeparator}${serialize(value, indentLevel + 1)}`;
+      const serializedKey = `"${key}"${options.keySeparator}`;
+      const serializedValue = stringifyAny(value, indentLevel + 1, currentLine + serializedKey);
+      const serializedField = serializedKey + serializedValue;
 
       if (result.length === 0) {
         return serializedField.trim();
@@ -31,8 +38,47 @@ export default function stringify(obj: mixed, options: Options = defaultOptions)
     return `{${contents}}`;
   }
 
-  function serialize(node, indentLevel = 0) {
+  function stringifyArray(array, indentLevel, currentLine) {
     const lineLength = options.lineLength - indent(indentLevel).length;
+
+    // Try for a one line array
+    const tryOneLine = array.reduce((result, element, n) => {
+      const stringifiedElement = stringifyAny(
+        element,
+        indentLevel + 1,
+        lastLine(currentLine + result),
+      );
+
+      return result + (n ? options.fieldSeparator : '') + stringifiedElement;
+    }, '[');
+
+    if ((`${currentLine}${tryOneLine}]`).length <= lineLength) {
+      return `${tryOneLine}]`;
+    }
+
+    // Start array on a new line, but cram as many values in as possible onto one line
+    const contents = array.reduce((result, element, n) => {
+      const stringifiedElement = stringifyAny(element, indentLevel + 1, lastLine(result));
+      const tryFit = result + (n ? options.fieldSeparator : '') + stringifiedElement;
+
+      // The line being worked on
+      const workingLine = lastLine(indent(indentLevel + 1) + tryFit + options.fieldSeparator);
+
+      if (workingLine.length > lineLength) {
+        return result + options.fieldSeparator.trim() + NEWLINE + indent(indentLevel + 1)
+             + stringifiedElement;
+      }
+
+      return tryFit;
+    }, `[${NEWLINE + indent(indentLevel + 1)}`);
+
+    return `${contents + NEWLINE + indent(indentLevel)}]`;
+  }
+
+  function stringifyAny(node, indentLevel = 0, currentLine = '') {
+    const lineLength = options.lineLength - indent(indentLevel).length;
+
+    const { keySeparator, fieldSeparator } = options;
 
     /* Assuming the shortest possible key is `""` (empty string, 2
        characters) and shortest possible value is `0` (zero, 1
@@ -50,33 +96,7 @@ export default function stringify(obj: mixed, options: Options = defaultOptions)
     }
 
     if (Array.isArray(node)) {
-      if (node.length === 0) {
-        return JSON.stringify(node, null, 2);
-      }
-
-      const stringifiedArray = node.reduce((result, element) => {
-        const serializedElement = serialize(element, indentLevel + 1);
-
-        if (result.length === 0) {
-          return serializedElement.trim();
-        }
-
-        const lastNewline = result.lastIndexOf(NEWLINE);
-        const currentLine = lastNewline < 0 ? result : result.substr(lastNewline);
-        const singleLine = currentLine + options.fieldSeparator + serializedElement
-                         + options.fieldSeparator;
-
-        if (singleLine.length >= lineLength) {
-          return result + options.fieldSeparator.trim() + NEWLINE + indent(indentLevel + 1)
-               + serializedElement;
-        }
-
-        return result + options.fieldSeparator + serializedElement;
-      }, '');
-
-      return stringifiedArray.indexOf(NEWLINE) === -1 ?
-             `[${stringifiedArray}]` :
-             `[${NEWLINE + indent(indentLevel + 1) + stringifiedArray + NEWLINE}]`;
+      return stringifyArray(node, indentLevel, currentLine);
     }
 
     const keys = Object.keys(node);
@@ -86,22 +106,22 @@ export default function stringify(obj: mixed, options: Options = defaultOptions)
     }
 
     if (keys.length > maxObjectElements) {
-      return serializeObject(node, indentLevel);
+      return stringifyObject(node, indentLevel, currentLine);
     }
 
     const objectKeys = keys.map(
-      key => `"${key}"${options.keySeparator}${serialize(node[key], indentLevel + 1)}`,
+      key => `"${key}"${keySeparator}${stringifyAny(node[key], indentLevel + 1, currentLine)}`,
     );
 
-    const stringifiedObject = `{ ${objectKeys.join(options.fieldSeparator)} }`;
+    const stringifiedObject = `{ ${objectKeys.join(fieldSeparator)} }`;
 
     if (stringifiedObject.length >= lineLength) {
-      return serializeObject(node, indentLevel);
+      return stringifyObject(node, indentLevel, currentLine);
     }
 
     return stringifiedObject;
   }
 
   JSON.stringify(obj);
-  return serialize(obj);
+  return stringifyAny(obj);
 }

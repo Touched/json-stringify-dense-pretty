@@ -98,4 +98,20 @@ describe('JSON stringify', () => {
 
     expect(stringify(data)).to.equal(expected);
   });
+
+  it('takes long property names into account for line length', () => {
+    const data = {
+      thisIsAReallyLongPropertyNameAndShouldAffectTheArray: [
+        0, 0, 0, 0, 0, 0, 0, 0,
+      ],
+    };
+
+    const expected = `{
+  "thisIsAReallyLongPropertyNameAndShouldAffectTheArray": [
+    0, 0, 0, 0, 0, 0, 0, 0
+  ]
+}`;
+
+    expect(stringify(data)).to.equal(expected);
+  });
 });
