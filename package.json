@@ -1,5 +1,5 @@
 {
-  "name": "@Touched/json-stringify-dense-pretty",
+  "name": "@touched/json-stringify-dense-pretty",
   "version": "0.1.0",
   "description": "A JSON.stringify that eliminates excessive whitespace",
   "main": "lib/index.js",
